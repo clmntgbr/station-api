@@ -73,5 +73,8 @@ migrate-down: cli-build
 migrate-check: cli-build
 	@$(COMPOSE_DEV) exec api ./bin/cli migrate check
 
+feed: cli-build
+	@$(COMPOSE_DEV) exec api ./bin/cli feed pull
+
 shell:
 	$(COMPOSE_DEV) exec api sh
