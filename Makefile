@@ -8,7 +8,7 @@ dev:
 	$(COMPOSE_DEV) up -d
 
 restart:
-	$(COMPOSE_DEV) restart api worker
+	$(COMPOSE_DEV) restart api worker scheduler
 
 build:
 	$(COMPOSE_DEV) up -d --build
@@ -17,7 +17,7 @@ dev-down:
 	$(COMPOSE_DEV) down
 
 dev-logs:
-	$(COMPOSE_DEV) logs -f api worker
+	$(COMPOSE_DEV) logs -f api worker scheduler
 
 api-logs:
 	$(COMPOSE_DEV) logs -f api
@@ -25,8 +25,11 @@ api-logs:
 worker-logs:
 	$(COMPOSE_DEV) logs -f worker
 
+scheduler-logs:
+	$(COMPOSE_DEV) logs -f scheduler
+
 dev-restart:
-	$(COMPOSE_DEV) restart api worker
+	$(COMPOSE_DEV) restart api worker scheduler
 
 lint:
 	$(COMPOSE_DEV) exec api golangci-lint run --fix

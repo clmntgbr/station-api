@@ -50,6 +50,12 @@ RUN CGO_ENABLED=0 GOOS=linux go build \
     -o cli \
     ./cmd/cli
 
+RUN CGO_ENABLED=0 GOOS=linux go build \
+    -a -installsuffix cgo \
+    -ldflags="-w -s" \
+    -o scheduler \
+    ./cmd/scheduler
+
 
 # ============================================
 # Production stage - Minimal runtime
@@ -66,6 +72,7 @@ WORKDIR /home/appuser
 COPY --from=builder --chown=appuser:appuser /app/api .
 COPY --from=builder --chown=appuser:appuser /app/worker .
 COPY --from=builder --chown=appuser:appuser /app/cli .
+COPY --from=builder --chown=appuser:appuser /app/scheduler .
 
 USER appuser
 

@@ -35,6 +35,8 @@ type Config struct {
 	CentrifugoAPIKey      string
 	CentrifugoTokenSecret string
 	CentrifugoPublicWSURL string
+	FuelFeedURL           string
+	SchedulerFeedInterval time.Duration
 }
 
 func Load() *Config {
@@ -67,6 +69,8 @@ func Load() *Config {
 		CentrifugoAPIKey:      getEnv("CENTRIFUGO_API_KEY"),
 		CentrifugoTokenSecret: getEnv("CENTRIFUGO_TOKEN_SECRET"),
 		CentrifugoPublicWSURL: getEnvOrDefault("CENTRIFUGO_PUBLIC_WS_URL", ""),
+		FuelFeedURL:           getEnvOrDefault("FUEL_FEED_URL", ""),
+		SchedulerFeedInterval: getEnvDuration("SCHEDULER_FEED_INTERVAL", 5*time.Minute),
 	}
 }
 

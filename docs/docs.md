@@ -39,16 +39,17 @@ Tous les échanges passent par RabbitMQ sous forme d'events versionnés, dans un
 
 | Event | Producteur | Consommateur | Contenu |
 | --- | --- | --- | --- |
-| `fuel_feed.refresh_requested.v1` | scheduler, API admin | ingester | `force` (ignore le diff) |
-| `station.upserted.v1` | ingester | worker | `id` (uuid v7), `stationId`, station complète + hash |
+| `station.upserted.v1` | scheduler (`fuel_feed`), CLI `feed pull` | worker | `id` (uuid v7), `stationId`, station complète + hash |
 | `station.price_changed.v1` | worker (outbox) | futurs consommateurs (alertes) | `id` (uuid v7), `stationId` (identifiant roulez-eco), carburant, ancien et nouveau prix |
 | `station.enrichment_requested.v1` | API (recherche) | enricher (phase 2) | `id` (uuid v7) |
 | `station.enriched.v1` | enricher (phase 2) | worker | `google_place_id` + infos Places |
 
+Le binaire `cmd/scheduler` tire le flux roulez-eco toutes les 5 minutes (UTC, bornes `:00` / `:05` / …, configurable via `SCHEDULER_FEED_INTERVAL`). D'autres jobs s'ajoutent en lançant un `go runJob(...)` dans `main`. Un `make feed` / `cli feed pull` reste possible à la main.
+
 Règles de fonctionnement :
 
 - Exchange `topic` unique, une queue par consommateur, dead-letter queue et retries avec délai.
-- L'ingester ne publie `station.upserted.v1` que si le hash de la station diffère de celui en base : en régime normal, seules les stations modifiées circulent.
+- Le pull ne publie `station.upserted.v1` que si le hash de la station diffère de celui en base : en régime normal, seules les stations modifiées circulent.
 - Le worker est idempotent : rejouer un event ne change pas l'état final.
 - `station.price_changed.v1` passe par un outbox transactionnel (même transaction que l'écriture du prix), comme dans FlowForge.
 
