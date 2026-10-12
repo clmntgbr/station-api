@@ -2,15 +2,14 @@ package processed
 
 import (
 	"context"
-	"errors"
 	"time"
 
 	"go-api/internal/domain/port"
 	"go-api/internal/infrastructure/persistence/write"
 
 	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5/pgconn"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 type repository struct {
@@ -33,14 +32,17 @@ func (r *repository) MarkProcessed(ctx context.Context, eventID, handlerName str
 		ProcessedAt: time.Now().UTC(),
 	}
 
-	err = write.DBWithContext(ctx, r.db).Create(&row).Error
-	if err == nil {
-		return true, nil
+	// ON CONFLICT DO NOTHING leaves the surrounding transaction usable.
+	result := write.DBWithContext(ctx, r.db).
+		Clauses(clause.OnConflict{
+			Columns:   []clause.Column{{Name: "event_id"}, {Name: "handler_name"}},
+			DoNothing: true,
+		}).
+		Create(&row)
+	if result.Error != nil {
+		return false, result.Error
 	}
-	if isUniqueViolation(err) {
-		return false, nil
-	}
-	return false, err
+	return result.RowsAffected > 0, nil
 }
 
 func (r *repository) UnmarkProcessed(ctx context.Context, eventID, handlerName string) error {
@@ -51,15 +53,4 @@ func (r *repository) UnmarkProcessed(ctx context.Context, eventID, handlerName s
 	return write.DBWithContext(ctx, r.db).
 		Where("event_id = ? AND handler_name = ?", id, handlerName).
 		Delete(&ProcessedEvent{}).Error
-}
-
-func isUniqueViolation(err error) bool {
-	if errors.Is(err, gorm.ErrDuplicatedKey) {
-		return true
-	}
-	var pgErr *pgconn.PgError
-	if errors.As(err, &pgErr) {
-		return pgErr.Code == "23505"
-	}
-	return false
 }

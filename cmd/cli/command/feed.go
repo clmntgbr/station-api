@@ -9,7 +9,6 @@ import (
 	"time"
 
 	stationcmd "go-api/internal/application/command/station"
-	"go-api/internal/domain/station"
 	"go-api/internal/infrastructure/config"
 	"go-api/internal/infrastructure/messaging/rabbitmq"
 	"go-api/internal/infrastructure/persistence/read"
@@ -56,7 +55,7 @@ func runFeedPull(ctx context.Context, feedURL string, out io.Writer) error {
 	topology := rabbitmq.DefaultTopology(
 		env.RabbitMQExchange,
 		stationcmd.QueueName,
-		station.EventTypeStationUpserted,
+		stationcmd.RoutingKeys(),
 		env.RabbitMQRetryTTLMS,
 	)
 	conn, err := rabbitmq.Connect(env.RabbitMQURL, topology)
@@ -86,7 +85,9 @@ func runFeedPull(ctx context.Context, feedURL string, out io.Writer) error {
 
 func writeFeedSummary(out io.Writer, result stationcmd.Result, elapsed time.Duration) {
 	fmt.Fprintf(out, "stations: %d\n", result.Stations)
-	fmt.Fprintf(out, "published: %d\n", result.Published)
+	fmt.Fprintf(out, "created: %d\n", result.Created)
+	fmt.Fprintf(out, "info: %d\n", result.Info)
+	fmt.Fprintf(out, "prices: %d\n", result.Prices)
 	fmt.Fprintf(out, "unchanged: %d\n", result.Unchanged)
 	fmt.Fprintf(out, "elapsed: %s\n", elapsed)
 }

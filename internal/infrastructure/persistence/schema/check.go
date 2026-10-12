@@ -15,6 +15,8 @@ func Models() []any {
 	return []any{
 		&write.UserModel{},
 		&write.StationModel{},
+		&write.CurrentPriceModel{},
+		&write.PriceHistoryModel{},
 		&outbox.OutboxEvent{},
 		&processed.ProcessedEvent{},
 	}

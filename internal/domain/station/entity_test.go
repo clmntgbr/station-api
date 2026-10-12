@@ -6,12 +6,14 @@ import (
 	"time"
 
 	"go-api/internal/domain/price"
+
+	"github.com/google/uuid"
 )
 
 func TestNewRejectsInvalidStation(t *testing.T) {
 	updated := time.Date(2026, 10, 11, 8, 50, 9, 0, time.UTC)
 	base := Station{
-		ID:         "89100001",
+		StationID:  "89100001",
 		EnergyType: EnergyTypeFuel,
 		Location:   Location{Latitude: 48.183, Longitude: 3.309},
 		PostalCode: "89100",
@@ -41,7 +43,10 @@ func TestNewRejectsInvalidStation(t *testing.T) {
 		edit func(*Station)
 		want error
 	}{
-		{name: "empty id", edit: func(s *Station) { s.ID = " " }, want: ErrInvalidStation},
+		{name: "empty id", edit: func(s *Station) { s.StationID = " " }, want: ErrInvalidStation},
+		{name: "uuid version", edit: func(s *Station) {
+			s.ID = uuid.MustParse("6ba7b810-9dad-11d1-80b4-00c04fd430c8")
+		}, want: ErrInvalidStation},
 		{name: "bad energy", edit: func(s *Station) { s.EnergyType = "gas" }, want: ErrInvalidStation},
 		{name: "null island", edit: func(s *Station) { s.Location = Location{} }, want: ErrInvalidLocation},
 		{name: "latitude out of range", edit: func(s *Station) { s.Location.Latitude = 91 }, want: ErrInvalidLocation},
@@ -74,7 +79,7 @@ func TestNewCanonicalizesStation(t *testing.T) {
 	later := time.Date(2026, 10, 11, 8, 50, 9, 0, time.UTC)
 
 	got, err := New(Station{
-		ID:         " 89100001 ",
+		StationID:  " 89100001 ",
 		EnergyType: EnergyTypeFuel,
 		Location:   Location{Latitude: 48.183, Longitude: 3.309},
 		City:       " SENS ",
@@ -105,7 +110,7 @@ func TestNewCanonicalizesStation(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if got.ID != "89100001" || got.City != "SENS" {
+	if got.StationID != "89100001" || got.City != "SENS" {
 		t.Fatalf("identity not trimmed: %#v", got)
 	}
 	if got.Hours.Days[0].ID != 1 || got.Hours.Days[0].Name != "Lundi" || !got.Hours.Days[0].Closed {
@@ -127,7 +132,7 @@ func TestNewCanonicalizesStation(t *testing.T) {
 
 func TestNewAcceptsStationWithoutPrices(t *testing.T) {
 	got, err := New(Station{
-		ID:         "58240003",
+		StationID:  "58240003",
 		EnergyType: EnergyTypeFuel,
 		Location:   Location{Latitude: 46.7535171497, Longitude: 3.14069121289},
 		City:       "Chantenay-Saint-Imbert",
@@ -147,7 +152,7 @@ func TestNewAcceptsStationWithoutPrices(t *testing.T) {
 	}
 }
 
-func TestContentHashStableAndSensitive(t *testing.T) {
+func TestHashesSplitInfoAndPrices(t *testing.T) {
 	first, err := New(sampleStation())
 	if err != nil {
 		t.Fatal(err)
@@ -156,24 +161,37 @@ func TestContentHashStableAndSensitive(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if first.ContentHash() == "" || first.ContentHash() != second.ContentHash() {
-		t.Fatalf("hash not stable: %s vs %s", first.ContentHash(), second.ContentHash())
+	if first.InfoHash() == "" || first.PriceHash() == "" || first.InfoHash() == first.PriceHash() {
+		t.Fatalf("hashes = %s %s", first.InfoHash(), first.PriceHash())
+	}
+	if first.InfoHash() != second.InfoHash() || first.PriceHash() != second.PriceHash() {
+		t.Fatal("hashes are not stable")
 	}
 
-	changed := sampleStation()
-	changed.Prices[0].Amount = 2400
-	updated, err := New(changed)
+	priced := sampleStation()
+	priced.Prices[0].Amount = 2400
+	priceChanged, err := New(priced)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if updated.ContentHash() == first.ContentHash() {
-		t.Fatal("hash ignored a price change")
+	if priceChanged.InfoHash() != first.InfoHash() || priceChanged.PriceHash() == first.PriceHash() {
+		t.Fatal("a price change must affect only the price hash")
+	}
+
+	served := sampleStation()
+	served.Services = []string{"Toilettes publiques"}
+	infoChanged, err := New(served)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if infoChanged.PriceHash() != first.PriceHash() || infoChanged.InfoHash() == first.InfoHash() {
+		t.Fatal("a service change must affect only the info hash")
 	}
 }
 
 func sampleStation() Station {
 	return Station{
-		ID:         "34150003",
+		StationID:  "34150003",
 		EnergyType: EnergyTypeFuel,
 		Location:   Location{Latitude: 43.651, Longitude: 3.547},
 		PostalCode: "34150",

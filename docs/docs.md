@@ -17,7 +17,7 @@ Le flux instantané `https://donnees.roulez-eco.fr/opendata/instantane` est un Z
 
 | Élément | Contenu | Remarque |
 | --- | --- | --- |
-| `id` | Identifiant de la station (ex. 89100001) | Clé primaire |
+| `id` | Identifiant de la station (ex. 89100001) | Stocké dans `station_id`. La clé primaire `id` est un UUID v7 |
 | `latitude`, `longitude` | Degrés × 100 000 (4818300 → 48,183) | Parfois décimaux (4675351.71497) |
 | `cp`, `adresse`, `ville` | Adresse postale |  |
 | `horaires` | Attribut `automate-24-24` + 7 jours | Les automates portent `ferme="1"` avec un créneau 01.00–01.00 |
@@ -40,9 +40,9 @@ Tous les échanges passent par RabbitMQ sous forme d'events versionnés, dans un
 | Event | Producteur | Consommateur | Contenu |
 | --- | --- | --- | --- |
 | `fuel_feed.refresh_requested.v1` | scheduler, API admin | ingester | `force` (ignore le diff) |
-| `station.upserted.v1` | ingester | worker | Station complète + hash du contenu |
-| `station.price_changed.v1` | worker (outbox) | futurs consommateurs (alertes) | `station_id`, carburant, ancien et nouveau prix |
-| `station.enrichment_requested.v1` | API (recherche) | enricher (phase 2) | `station_id` |
+| `station.upserted.v1` | ingester | worker | `id` (uuid v7), `stationId`, station complète + hash |
+| `station.price_changed.v1` | worker (outbox) | futurs consommateurs (alertes) | `id` (uuid v7), `stationId` (identifiant roulez-eco), carburant, ancien et nouveau prix |
+| `station.enrichment_requested.v1` | API (recherche) | enricher (phase 2) | `id` (uuid v7) |
 | `station.enriched.v1` | enricher (phase 2) | worker | `google_place_id` + infos Places |
 
 Règles de fonctionnement :
@@ -58,9 +58,9 @@ Seul le worker écrit en base ; l'API ne fait que lire, sur des tables déjà pr
 
 | Table | Rôle | Colonnes clés |
 | --- | --- | --- |
-| `stations` | Agrégat + projection de lecture | `id`, `energy_type`, `location` (geography Point 4326), `services`, `hours` (jsonb), `content_hash`, `google_place_id` |
-| `fuel_prices_current` | Prix courants | PK (`station_id`, `fuel`), `price` numeric(6,3), `source_updated_at` |
-| `fuel_prices_history` | Historique des prix | `station_id`, `fuel`, `price`, `source_updated_at`, `observed_at` |
+| `stations` | Agrégat + projection de lecture | `id` (uuid v7), `station_id` (identifiant roulez-eco), `energy_type`, `location` (geography Point 4326), `services`, `hours` (jsonb), `info_hash`, `price_hash`, `google_place_id` |
+| `current_prices` | Prix courants | PK (`station_id`, `fuel`) — `station_id` référence `stations.id`, `price` numeric(6,3), `source_updated_at` |
+| `prices_history` | Historique des prix | `station_id` (uuid, référence `stations.id`), `fuel`, `price`, `source_updated_at`, `observed_at` |
 
 Index : GIST sur `stations.location`, et `(fuel, price)` sur les prix courants pour le tri par prix.
 
@@ -70,7 +70,7 @@ Traitement d'un `station.upserted.v1` par le worker, en une transaction :
 2. Pour chaque prix, comparaison avec le prix courant.
 3. Si le prix diffère : insertion dans l'historique, mise à jour du prix courant, écriture de l'event `station.price_changed.v1` dans l'outbox.
 
-Choix pragmatique : `stations` et `fuel_prices_current` font office de modèle de lecture dans la même base ; une séparation physique ne se justifie que si la charge de lecture l'impose.
+Choix pragmatique : `stations` et `current_prices` font office de modèle de lecture dans la même base ; une séparation physique ne se justifie que si la charge de lecture l'impose.
 
 La colonne `energy_type` (`fuel` ou `ev`) prépare l'arrivée des bornes électriques sans changer le schéma.
 

@@ -144,7 +144,7 @@ func mapPDV(raw pdvXML) (station.Station, error) {
 	}
 
 	built, err := station.New(station.Station{
-		ID:         raw.ID,
+		StationID:  raw.ID,
 		EnergyType: station.EnergyTypeFuel,
 		Location:   station.Location{Latitude: lat, Longitude: lng},
 		PostalCode: raw.CP,

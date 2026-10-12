@@ -55,6 +55,7 @@ var ErrInvalidPrice = errors.New("invalid price")
 
 // Price is the latest pump price of one fuel at one station.
 // Identity is the pair (StationID, Fuel).
+// StationID is the feed identifier, not the station's internal UUID.
 // Amount is thousandths of a euro per litre: 2399 means 2.399 €/L.
 type Price struct {
 	StationID       string

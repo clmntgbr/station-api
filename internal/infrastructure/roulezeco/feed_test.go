@@ -29,7 +29,7 @@ func TestFeedStream(t *testing.T) {
 	feed := NewFeed(srv.URL, srv.Client())
 	var ids []string
 	err := feed.Stream(context.Background(), func(s station.Station) error {
-		ids = append(ids, s.ID)
+		ids = append(ids, s.StationID)
 		return nil
 	})
 	if err != nil {
@@ -134,9 +134,9 @@ func TestStreamRealFeed(t *testing.T) {
 				withoutPrices++
 			}
 			if s.Location.Latitude < 41 || s.Location.Latitude > 52 || s.Location.Longitude < -6 || s.Location.Longitude > 11 {
-				t.Errorf("station %s outside metropolitan France: %v", s.ID, s.Location)
+				t.Errorf("station %s outside metropolitan France: %v", s.StationID, s.Location)
 			}
-			switch s.ID {
+			switch s.StationID {
 			case "34150003":
 				copied := s
 				gignac = &copied

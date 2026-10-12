@@ -3,9 +3,12 @@ package di
 import (
 	"log"
 
+	stationcmd "go-api/internal/application/command/station"
 	"go-api/internal/application/event/dedup"
+	eventstation "go-api/internal/application/event/station"
 	eventuser "go-api/internal/application/event/user"
 	"go-api/internal/application/registry"
+	domainstation "go-api/internal/domain/station"
 	domainuser "go-api/internal/domain/user"
 	"go-api/internal/infrastructure/centrifugo"
 	"go-api/internal/infrastructure/config"
@@ -13,14 +16,17 @@ import (
 	"go-api/internal/infrastructure/notification"
 	"go-api/internal/infrastructure/persistence/outbox"
 	"go-api/internal/infrastructure/persistence/processed"
+	"go-api/internal/infrastructure/persistence/write"
 
 	"gorm.io/gorm"
 )
 
 type Container struct {
-	Relay    *outbox.Relay
-	Consumer *rabbitmq.Consumer
-	Conn     *rabbitmq.Connection
+	Relay           *outbox.Relay
+	Consumer        *rabbitmq.Consumer
+	StationConsumer *rabbitmq.Consumer
+	Conn            *rabbitmq.Connection
+	StationConn     *rabbitmq.Connection
 }
 
 func NewContainer(db *gorm.DB, env *config.Config) *Container {
@@ -84,9 +90,34 @@ func NewContainer(db *gorm.DB, env *config.Config) *Container {
 
 	consumer := rabbitmq.NewConsumer(conn, reg, env.WorkerConcurrency, env.WorkerMaxRetries)
 
+	stationTopology := rabbitmq.DefaultTopology(
+		env.RabbitMQExchange,
+		stationcmd.QueueName,
+		stationcmd.RoutingKeys(),
+		env.RabbitMQRetryTTLMS,
+	)
+	stationConn, err := rabbitmq.Connect(env.RabbitMQURL, stationTopology)
+	if err != nil {
+		_ = conn.Close()
+		log.Fatalf("failed to connect station consumer: %v", err)
+	}
+	stationReg := registry.NewHandlerRegistry()
+	stationRepo := write.NewStationWriteRepository(db)
+	stationReg.Register(
+		domainstation.EventTypeStationUpserted,
+		eventstation.NewUpsertedHandler(stationRepo, outboxRepo, dedupRepo).Handle,
+	)
+	stationReg.Register(
+		domainstation.EventTypePricesUpdated,
+		eventstation.NewPricesUpdatedHandler(stationRepo, outboxRepo, dedupRepo).Handle,
+	)
+	stationConsumer := rabbitmq.NewConsumer(stationConn, stationReg, env.WorkerConcurrency, env.WorkerMaxRetries)
+
 	return &Container{
-		Relay:    relay,
-		Consumer: consumer,
-		Conn:     conn,
+		Relay:           relay,
+		Consumer:        consumer,
+		StationConsumer: stationConsumer,
+		Conn:            conn,
+		StationConn:     stationConn,
 	}
 }

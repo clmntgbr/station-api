@@ -86,7 +86,7 @@ func (c *Consumer) handleDelivery(ctx context.Context, m amqp.Delivery) {
 		return
 	}
 
-	err := c.registry.Dispatch(ctx, envelope.Type, envelope.Payload)
+	err := c.registry.Dispatch(messaging.WithEventID(ctx, envelope.EventID), envelope.Type, envelope.Payload)
 	if err == nil {
 		_ = m.Ack(false)
 		return

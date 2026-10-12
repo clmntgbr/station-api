@@ -151,8 +151,8 @@ func TestParseFeedQuirks(t *testing.T) {
 	if gignac.Prices[0].Amount != 2334 {
 		t.Fatalf("gignac price = %#v", gignac.Prices[0])
 	}
-	if gignac.ContentHash() == "" || gignac.ContentHash() != second["34150003"].ContentHash() {
-		t.Fatal("content hash is not stable across parses")
+	if gignac.InfoHash() == "" || gignac.InfoHash() != second["34150003"].InfoHash() || gignac.PriceHash() != second["34150003"].PriceHash() {
+		t.Fatal("hashes are not stable across parses")
 	}
 
 	motorway := first["1000001"]
@@ -283,7 +283,7 @@ func indexStations(t *testing.T, encoded []byte) map[string]station.Station {
 	t.Helper()
 	out := map[string]station.Station{}
 	err := parse(bytes.NewReader(encoded), func(s station.Station) error {
-		out[s.ID] = s
+		out[s.StationID] = s
 		return nil
 	})
 	if err != nil {

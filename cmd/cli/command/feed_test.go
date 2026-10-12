@@ -13,15 +13,19 @@ func TestWriteFeedSummary(t *testing.T) {
 	var out bytes.Buffer
 	writeFeedSummary(&out, stationcmd.Result{
 		Stations:  10,
-		Published: 2,
-		Unchanged: 8,
+		Created:   1,
+		Info:      2,
+		Prices:    3,
+		Unchanged: 4,
 	}, time.Second)
 
 	text := out.String()
 	for _, want := range []string{
 		"stations: 10",
-		"published: 2",
-		"unchanged: 8",
+		"created: 1",
+		"info: 2",
+		"prices: 3",
+		"unchanged: 4",
 		"elapsed: 1s",
 	} {
 		if !strings.Contains(text, want) {

@@ -22,11 +22,17 @@ func main() {
 
 	container := di.NewContainer(db, env)
 	defer container.Conn.Close()
+	defer container.StationConn.Close()
 
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer cancel()
 
 	go container.Relay.Start(ctx)
+	go func() {
+		if err := container.StationConsumer.Start(ctx); err != nil {
+			log.Fatalf("station consumer stopped with error: %v", err)
+		}
+	}()
 
 	if err := container.Consumer.Start(ctx); err != nil {
 		log.Fatalf("worker stopped with error: %v", err)
