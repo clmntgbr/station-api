@@ -59,7 +59,7 @@ Seul le worker écrit en base ; l'API ne fait que lire, sur des tables déjà pr
 | Table | Rôle | Colonnes clés |
 | --- | --- | --- |
 | `stations` | Agrégat + projection de lecture | `id` (uuid v7), `station_id` (identifiant roulez-eco), `energy_type`, `location` (geography Point 4326), `services`, `hours` (jsonb), `info_hash`, `price_hash`, `google_place_id` |
-| `current_prices` | Prix courants | PK (`station_id`, `fuel`) — `station_id` référence `stations.id`, `price` numeric(6,3), `source_updated_at` |
+| `current_prices` | Prix courants | PK (`station_id`, `fuel`) — `station_id` référence `stations.id`, `price` numeric(6,3), `source_updated_at`, `created_at`, `updated_at` |
 | `prices_history` | Historique des prix | `station_id` (uuid, référence `stations.id`), `fuel`, `price`, `source_updated_at`, `observed_at` |
 
 Index : GIST sur `stations.location`, et `(fuel, price)` sur les prix courants pour le tri par prix.

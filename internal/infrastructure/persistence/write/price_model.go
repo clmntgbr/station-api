@@ -14,6 +14,8 @@ type CurrentPriceModel struct {
 	Fuel            string     `gorm:"column:fuel;primaryKey"`
 	Price           euroAmount `gorm:"column:price"`
 	SourceUpdatedAt time.Time  `gorm:"column:source_updated_at"`
+	CreatedAt       time.Time  `gorm:"column:created_at"`
+	UpdatedAt       time.Time  `gorm:"column:updated_at"`
 }
 
 func (CurrentPriceModel) TableName() string {

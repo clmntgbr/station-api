@@ -124,6 +124,7 @@ func (r *stationWriteRepository) SyncPrices(ctx context.Context, id uuid.UUID, p
 	}
 
 	if len(prices) > 0 {
+		now := observedAt.UTC()
 		rows := make([]CurrentPriceModel, len(prices))
 		for i, item := range prices {
 			rows[i] = CurrentPriceModel{
@@ -131,11 +132,13 @@ func (r *stationWriteRepository) SyncPrices(ctx context.Context, id uuid.UUID, p
 				Fuel:            string(item.Fuel),
 				Price:           euroAmount(item.Amount),
 				SourceUpdatedAt: item.SourceUpdatedAt.UTC(),
+				CreatedAt:       now,
+				UpdatedAt:       now,
 			}
 		}
 		err := db.Clauses(clause.OnConflict{
 			Columns:   []clause.Column{{Name: "station_id"}, {Name: "fuel"}},
-			DoUpdates: clause.AssignmentColumns([]string{"price", "source_updated_at"}),
+			DoUpdates: clause.AssignmentColumns([]string{"price", "source_updated_at", "updated_at"}),
 		}).Create(&rows).Error
 		if err != nil {
 			return fmt.Errorf("upsert prices for station %s: %w", id, err)
